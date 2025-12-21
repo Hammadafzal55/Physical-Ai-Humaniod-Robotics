@@ -25,16 +25,16 @@ description: "Generate an actionable, dependency-ordered tasks.md for the featur
 
 **Purpose**: Initialize the backend project and install core dependencies.
 
--   [ ] T001 Navigate to the `backend/` directory.
--   [ ] T002 Initialize the Python project using `uv` (create virtual environment, `pyproject.toml` if not exists). (`backend/`)
--   [ ] T003 Install core dependencies using `uv` for FastAPI, Cohere, Qdrant-client, requests-html, beautifulsoup4, python-dotenv, uvicorn, tenacity. (`backend/pyproject.toml`)
+- [X] T001 Navigate to the `backend/` directory.
+- [X] T002 Initialize the Python project using `uv` (create virtual environment, `pyproject.toml` if not exists). (`backend/`)
+- [X] T003 Install core dependencies using `uv` for FastAPI, Cohere, Qdrant-client, requests-html, beautifulsoup4, python-dotenv, uvicorn, tenacity. (`backend/pyproject.toml`)
 
 ## Phase 2: Foundational
 
 **Purpose**: Establish the basic structure for the RAG pipeline.
 
--   [ ] T004 Create the `main.py` file for the RAG pipeline. (`backend/main.py`)
--   [ ] T005 Set up environment variables in a `.env` file in the `backend/` directory for `COHERE_API_KEY`, `QDRANT_HOST`, `QDRANT_API_KEY`, and `TEXTBOOK_URLS`. (`backend/.env`)
+- [X] T004 Create the `main.py` file for the RAG pipeline. (`backend/main.py`)
+- [X] T005 Set up environment variables in a `.env` file in the `backend/` directory for `COHERE_API_KEY`, `QDRANT_HOST`, `QDRANT_API_KEY`, and `TEXTBOOK_URLS`. (`backend/.env`)
 
 ## Phase 3: User Story 1 - Textbook Content Extraction & Embedding (Priority: P1)
 
@@ -44,27 +44,27 @@ description: "Generate an actionable, dependency-ordered tasks.md for the featur
 
 ### Implementation for User Story 1
 
--   [ ] T006 [P] [US1] Implement `extract_text_from_url(url: str)` function to fetch and parse HTML content from a given URL, returning clean text. (`backend/main.py`)
--   [ ] T007 [P] [US1] Implement `chunk_text(text: str)` function to split long texts into semantically meaningful chunks, adhering to Cohere token limits and including overlap. (`backend/main.py`)
--   [ ] T008 [P] [US1] Implement `embed(texts: List[str])` function to generate embeddings for a list of text chunks using Cohere `embed-english-v3.0`. (`backend/main.py`)
--   [ ] T009 [P] [US1] Implement `create_collection(collection_name: str, vector_size: int, distance_metric: str)` function to initialize a Qdrant collection with specified parameters. (`backend/main.py`)
--   [ ] T010 [P] [US1] Implement `save_chunk_to_qdrant(collection_name: str, text_chunk: TextChunk, embedding: Embedding)` function to store an embedding and its metadata in Qdrant. (`backend/main.py`)
--   [ ] T011 [P] [US1] Implement `ingest_book(textbook_urls: List[str], collection_name: str)` function that orchestrates the entire pipeline:
+- [X] T006 [P] [US1] Implement `extract_text_from_url(url: str)` function to fetch and parse HTML content from a given URL, returning clean text. (`backend/main.py`)
+- [X] T007 [P] [US1] Implement `chunk_text(text: str)` function to split long texts into semantically meaningful chunks, adhering to Cohere token limits and including overlap. (`backend/main.py`)
+- [X] T008 [P] [US1] Implement `embed(texts: List[str])` function to generate embeddings for a list of text chunks using Cohere `embed-english-v3.0`. (`backend/main.py`)
+- [X] T009 [P] [US1] Implement `create_collection(collection_name: str, vector_size: int, distance_metric: str)` function to initialize a Qdrant collection with specified parameters. (`backend/main.py`)
+- [X] T010 [P] [US1] Implement `save_chunk_to_qdrant(collection_name: str, text_chunk: TextChunk, embedding: Embedding)` function to store an embedding and its metadata in Qdrant. (`backend/main.py`)
+- [X] T011 [P] [US1] Implement ingest_book(textbook_urls: List[str], collection_name: str) function that orchestrates the entire pipeline:
     1.  Fetches URLs.
     2.  Extracts content.
     3.  Chunks text.
     4.  Generates embeddings.
     5.  Stores in Qdrant. (`backend/main.py`)
--   [ ] T012 [P] [US1] Implement a utility function (e.g., `get_textbook_chapter_urls`) to fetch a list of deployed Docusaurus chapter URLs dynamically or from a predefined list. (`backend/main.py`)
+- [X] T012 [P] [US1] Implement a utility function (e.g., `get_textbook_chapter_urls`) to fetch a list of deployed Docusaurus chapter URLs dynamically or from a predefined list. (`backend/main.py`)
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 **Purpose**: Finalize the pipeline with robustness and validation.
 
--   [ ] T013 Implement error handling and retry mechanisms for Cohere API and Qdrant client interactions, including exponential backoff. (`backend/main.py`)
--   [ ] T014 Add logging for pipeline progress, errors, and warnings. (`backend/main.py`)
--   [ ] T015 Write a simple validation script or function (e.g., `verify_qdrant_data`) to query Qdrant and verify ingested data, matching `SC-004`. (`backend/main.py`)
--   [ ] T016 Implement main execution logic to run the ingestion pipeline when `main.py` is executed directly. (`backend/main.py`)
+-   [X] T013 Implement error handling and retry mechanisms for Cohere API and Qdrant client interactions, including exponential backoff. (`backend/main.py`)
+-   [X] T014 Add logging for pipeline progress, errors, and warnings. (`backend/main.py`)
+-   [X] T015 Write a simple validation script or function (e.g., `verify_qdrant_data`) to query Qdrant and verify ingested data, matching `SC-004`. (`backend/main.py`)
+-   [X] T016 Implement main execution logic to run the ingestion pipeline when `main.py` is executed directly. (`backend/main.py`)
 
 ---
 ## Dependencies & Execution Order
