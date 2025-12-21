@@ -1,0 +1,61 @@
+.heroBanner {
+  padding: 4rem 0;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(90deg, hsla(271, 82%, 11%, 1) 0%, hsla(262, 69%, 10%, 1) 100%);
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem;
+    text-align: center;
+  }
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.heroContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heroText {
+  max-width: 600px;
+  color: white;
+}
+
+.heroImageContainer {
+  perspective: 1000px;
+}
+
+.bookImage {
+  width: 300px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  animation: float 6s ease-in-out infinite;
+}
+
+.bookImage:hover {
+  transform: scale(1.03);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}

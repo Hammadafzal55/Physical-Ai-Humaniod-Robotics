@@ -1,0 +1,137 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: rgb(36, 245, 247);
+  --ifm-color-primary-dark: rgb(69, 41, 120);
+  --ifm-color-primary-darker: rgb(65, 39, 113);
+  --ifm-color-primary-darkest: rgb(53, 32, 93);
+  --ifm-color-primary-light: rgb(85, 51, 146);
+  --ifm-color-primary-lighter: rgb(89, 53, 153);
+  --ifm-color-primary-lightest: rgb(101, 60, 173);
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-background-color: white; /* Default (Light) background should be light */
+  --ifm-text-color: black;      /* Default (Light) text should be dark */
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: rgb(37, 194, 160);
+  --ifm-color-primary-dark: rgb(33, 175, 144);
+  --ifm-color-primary-darker: rgb(31, 165, 136);
+  --ifm-color-primary-darkest: rgb(26, 136, 112);
+  --ifm-color-primary-light: rgb(41, 213, 176);
+  --ifm-color-primary-lighter: rgb(50, 216, 180);
+  --ifm-color-primary-lightest: rgb(79, 221, 191);
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-background-color: rgb(18, 18, 18); /* Dark background for dark mode */
+  --ifm-text-color: white;      /* Light text for dark mode */
+}
+
+.scroll-progress-container {
+  width: 100%;
+  height: 4px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  background-color: rgb(241, 241, 241);
+}
+
+.scroll-progress-bar {
+  height: 4px;
+  background: linear-gradient(to right, rgb(255, 138, 0), rgb(229, 46, 113));
+  width: 0%;
+}
+[data-theme='dark'] .navbar__title,
+[data-theme='dark'] .navbar__link {
+  color: white;
+}
+
+
+
+
+
+/* Styling for Docs UI content */
+main.container,
+.docMainContainer {
+  background-color: var(--ifm-background-color); /* Use theme variable */
+  color: var(--ifm-text-color); /* Use theme variable */
+}
+
+/* Link hover/click color */
+a:hover,
+a:focus,
+a:active {
+  color: rgb(36, 245, 247);
+  text-decoration: none; /* Keep consistent with Docusaurus's default link styling */
+}
+
+/* Also apply to Docusaurus specific link classes if needed */
+.navbar__link:hover,
+.menu__link:hover,
+.pagination-nav__link:hover {
+  color: rgb(36, 245, 247);
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px; /* For horizontal scrollbars */
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(241, 241, 241); /* Light track */
+  border-radius: 10px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: rgb(50, 50, 50); /* Dark track for dark mode */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(136, 136, 136); /* Grey thumb */
+  border-radius: 10px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgb(170, 170, 170); /* Lighter grey thumb for dark mode */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(100, 100, 100); /* Darker thumb on hover */
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: rgb(200, 200, 200); /* Even lighter grey thumb on hover for dark mode */
+}
+
+/* Adjustments for full viewport height sidebars and Navbar alignment */
+
+/* Docs sidebar (left) */
+.docSidebarContainer_node_modules-\@docusaurus-theme-classic-lib-theme-DocSidebar-styles_un9C {
+  position: sticky;
+  top: var(--ifm-navbar-height); /* Align with the bottom of the Navbar */
+  height: calc(100vh - var(--ifm-navbar-height)); /* Span remaining viewport height */
+  overflow-y: auto; /* Enable scrolling for long sidebars */
+}
+
+/* Table of Contents sidebar (right) */
+.tableOfContents_node_modules-\@docusaurus-theme-classic-lib-theme-TOC-styles_uUa0 {
+  position: sticky;
+  top: var(--ifm-navbar-height); /* Align with the bottom of the Navbar */
+  height: calc(100vh - var(--ifm-navbar-height)); /* Span remaining viewport height */
+  overflow-y: auto; /* Enable scrolling for long sidebars */
+}
+
+/* Ensure the main content area also accounts for the navbar height if needed */
+.docMainContainer {
+  padding-top: var(--ifm-navbar-height); /* Push content down below navbar */
+}
+
+

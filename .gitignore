@@ -1,0 +1,18 @@
+# Node.js/TypeScript/React
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Universal
+.DS_Store
+Thumbs.db
+.vscode/

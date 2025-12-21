@@ -1,0 +1,26 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+  width: 100%;
+  background-color: white; /* Day mode background */
+  color: black; /* Day mode text color */
+}
+
+[data-theme='dark'] .features {
+  background-color: black; /* Dark mode background */
+  color: white; /* Dark mode text color */
+}
+
+.featureImage {
+  height: 200px;
+  width: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+.featureTitle {
+  font-weight: bold;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
