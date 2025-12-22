@@ -1,0 +1,105 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "RAG Retrieval API",
+    "version": "1.0.0",
+    "description": "API for retrieving relevant text chunks from the RAG pipeline's vector store."
+  },
+  "paths": {
+    "/retrieve": {
+      "post": {
+        "summary": "Retrieve relevant text chunks based on a query embedding",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["query_embedding"],
+                "properties": {
+                  "query_embedding": {
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "description": "The vector embedding of the query text."
+                  },
+                  "top_k": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 1,
+                    "default": 5,
+                    "description": "The number of top relevant text chunks to retrieve."
+                  },
+                  "filters": {
+                    "type": "object",
+                    "description": "Optional filters to apply to the retrieval query (e.g., by chapter, source_url)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A list of relevant text chunks with their metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Unique identifier of the text chunk."
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The textual content of the chunk."
+                      },
+                      "metadata": {
+                        "type": "object",
+                        "properties": {
+                          "source_url": {
+                            "type": "string",
+                            "format": "url"
+                          },
+                          "chapter": {
+                            "type": "string"
+                          },
+                          "section": {
+                            "type": "string"
+                          },
+                          "page_number": {
+                            "type": "integer"
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "description": "Metadata associated with the text chunk."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Request Body"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}

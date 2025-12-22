@@ -1,16 +1,18 @@
 ---
 
-description: "Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts."
+description: "Task list for RAG Pipeline Setup & Embedding Storage"
 ---
 
-# Tasks: Phase 1 — Spec 3: RAG Pipeline Setup & Embedding Storage
+# Tasks: RAG Pipeline Setup & Embedding Storage
 
-**Input**: Design documents from `/specs/003-rag-pipeline-setup/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
+**Input**: Design documents from `specs/003-rag-pipeline-setup/`
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+
+**Tests**: The feature specification does not explicitly request test tasks, so none will be generated.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-## Format: `[ID] [P?] [Story] Description`
+## Format: `[ID] [P?] [Story?] Description with file path`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
@@ -19,94 +21,149 @@ description: "Generate an actionable, dependency-ordered tasks.md for the featur
 ## Path Conventions
 
 - **Web app**: `backend/src/`, `frontend/src/`
-- Paths shown below are relative to the project root.
+- Paths shown below assume single project - adjust based on plan.md structure
 
-## Phase 1: Setup
+---
 
-**Purpose**: Initialize the backend project and install core dependencies.
+## Phase 1: Setup (Shared Infrastructure)
 
-- [X] T001 Navigate to the `backend/` directory.
-- [X] T002 Initialize the Python project using `uv` (create virtual environment, `pyproject.toml` if not exists). (`backend/`)
-- [X] T003 Install core dependencies using `uv` for FastAPI, Cohere, Qdrant-client, requests-html, beautifulsoup4, python-dotenv, uvicorn, tenacity. (`backend/pyproject.toml`)
+**Purpose**: Project initialization and basic environment configuration for Playwright, Cohere, and Qdrant.
 
-## Phase 2: Foundational
+- [X] T001 Install Playwright browser binaries and dependencies. (This usually involves a shell command like `playwright install` in the environment).
+- [X] T002 Configure environment variables for Cohere API key in `.env` file.
+- [X] T003 Configure environment variables for Qdrant connection details (URL, API key) in `.env` file.
 
-**Purpose**: Establish the basic structure for the RAG pipeline.
+---
 
-- [X] T004 Create the `main.py` file for the RAG pipeline. (`backend/main.py`)
-- [X] T005 Set up environment variables in a `.env` file in the `backend/` directory for `COHERE_API_KEY`, `QDRANT_HOST`, `QDRANT_API_KEY`, and `TEXTBOOK_URLS`. (`backend/.env`)
+## Phase 2: Foundational (Blocking Prerequisites)
 
-## Phase 3: User Story 1 - Textbook Content Extraction & Embedding (Priority: P1)
+**Purpose**: Implement core data models and client initializations that are prerequisites for any user story.
 
-**Goal**: As a system administrator, I need to extract all relevant content from the deployed Docusaurus textbook, generate embeddings for each meaningful chunk of text using Cohere `embed-english-v3.0`, and store these embeddings, along with their original text and metadata, into a Qdrant vector database. This will enable the RAG chatbot to retrieve relevant information from the textbook.
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-**Independent Test**: Can be fully tested by running the RAG pipeline script against the deployed frontend URLs, verifying that the Qdrant database is populated with a sufficient number of embeddings, and that a sample query returns relevant text chunks.
+- [X] T004 Define `TextChunk` Pydantic model with `id`, `content`, and `metadata` fields in `backend/main.py`.
+- [X] T005 Initialize Qdrant client within `backend/main.py`.
+- [X] T006 Implement function to create Qdrant collection, including vector size and distance metric, in `backend/main.py`.
+- [X] T007 Initialize Cohere client within `backend/main.py`.
+- [X] T008 Implement text chunking logic (e.g., splitting text into fixed-size chunks) in `backend/main.py`.
+
+---
+
+## Phase 3: User Story 1 - Successful Textbook Content Ingestion and Embedding (Priority: P1) 🎯 MVP
+
+**Goal**: Implement the core ingestion pipeline: URL discovery, content extraction using Playwright (primary method), embedding generation with Cohere, Qdrant storage, and scaffolding for the retrieval endpoint.
+
+**Independent Test**: A given list of textbook URLs can be processed, and their content correctly extracted, embedded, and stored in Qdrant with associated metadata. The backend exposes a functional interface for RAG retrieval.
 
 ### Implementation for User Story 1
 
-- [X] T006 [P] [US1] Implement `extract_text_from_url(url: str)` function to fetch and parse HTML content from a given URL, returning clean text. (`backend/main.py`)
-- [X] T007 [P] [US1] Implement `chunk_text(text: str)` function to split long texts into semantically meaningful chunks, adhering to Cohere token limits and including overlap. (`backend/main.py`)
-- [X] T008 [P] [US1] Implement `embed(texts: List[str])` function to generate embeddings for a list of text chunks using Cohere `embed-english-v3.0`. (`backend/main.py`)
-- [X] T009 [P] [US1] Implement `create_collection(collection_name: str, vector_size: int, distance_metric: str)` function to initialize a Qdrant collection with specified parameters. (`backend/main.py`)
-- [X] T010 [P] [US1] Implement `save_chunk_to_qdrant(collection_name: str, text_chunk: TextChunk, embedding: Embedding)` function to store an embedding and its metadata in Qdrant. (`backend/main.py`)
-- [X] T011 [P] [US1] Implement ingest_book(textbook_urls: List[str], collection_name: str) function that orchestrates the entire pipeline:
-    1.  Fetches URLs.
-    2.  Extracts content.
-    3.  Chunks text.
-    4.  Generates embeddings.
-    5.  Stores in Qdrant. (`backend/main.py`)
-- [X] T012 [P] [US1] Implement a utility function (e.g., `get_textbook_chapter_urls`) to fetch a list of deployed Docusaurus chapter URLs dynamically or from a predefined list. (`backend/main.py`)
+- [X] T009 [US1] Implement URL discovery function (e.g., `get_sitemap_urls`) in `backend/main.py`.
+- [X] T010 [P] [US1] Implement primary content extraction function using Playwright (e.g., `extract_content_playwright`) in `backend/main.py`.
+- [X] T011 [P] [US1] Implement embedding generation function using Cohere API (e.g., `generate_embedding_cohere`) in `backend/main.py`.
+- [X] T012 [P] [US1] Implement Qdrant storage function (e.g., `store_chunks_in_qdrant`) to upsert vectors and payloads in `backend/main.py`.
+- [X] T013 [US1] Integrate extraction, chunking, embedding, and storage into a main ingestion pipeline function (e.g., `run_ingestion_pipeline`) in `backend/main.py`.
+- [X] T014 [US1] Scaffold FastAPI `POST /retrieve` endpoint in `backend/main.py` based on `retrieval_contract.json` to allow agents to query Qdrant.
 
-## Phase 4: Polish & Cross-Cutting Concerns
-
-**Purpose**: Finalize the pipeline with robustness and validation.
-
--   [X] T013 Implement error handling and retry mechanisms for Cohere API and Qdrant client interactions, including exponential backoff. (`backend/main.py`)
--   [X] T014 Add logging for pipeline progress, errors, and warnings. (`backend/main.py`)
--   [X] T015 Write a simple validation script or function (e.g., `verify_qdrant_data`) to query Qdrant and verify ingested data, matching `SC-004`. (`backend/main.py`)
--   [X] T016 Implement main execution logic to run the ingestion pipeline when `main.py` is executed directly. (`backend/main.py`)
+**Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
 ---
+
+## Phase 4: User Story 2 - Robust Content Extraction with Playwright Fallback (Priority: P2)
+
+**Goal**: Enhance the content extraction mechanism to include Playwright as a fallback when primary extraction methods (if any other were to be implemented later) fail. For this phase, Playwright is the primary method, so the fallback logic will ensure Playwright itself is robust.
+
+**Independent Test**: When the initial content extraction attempt (e.g., if it times out or returns empty content unexpectedly) fails for a given URL, the Playwright fallback mechanism is successfully re-attempted or used as the robust method, and the content is extracted, processed, embedded, and stored.
+
+### Implementation for User Story 2
+
+- [X] T015 [US2] Refine `extract_content_playwright` function in `backend/main.py` to include robust error handling, retries, and explicit fallback logic within Playwright (e.g., different selectors, waiting strategies).
+- [X] T016 [US2] Integrate the refined `extract_content_playwright` into the main ingestion pipeline.
+
+**Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
+
+---
+
+## Phase 5: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories and overall system quality.
+
+- [X] T017 Implement comprehensive error handling and exception management across the ingestion pipeline in `backend/main.py`.
+- [X] T018 Integrate structured logging for key operations (e.g., page extraction, embedding generation, Qdrant upsertions) in `backend/main.py`.
+- [X] T019 Add input validation for incoming data (e.g., URL formats) to ingestion functions in `backend/main.py`.
+- [X] T020 Review and add inline comments/docstrings to `backend/main.py` for maintainability.
+- [X] T021 Validate the implemented pipeline against the `quickstart.md` steps (manual check).
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
--   Phase 1 (Setup) must complete before Phase 2 (Foundational).
--   Phase 2 (Foundational) must complete before Phase 3 (User Story 1).
--   Phase 3 (User Story 1) must be substantially complete before Phase 4 (Polish & Cross-Cutting Concerns) begins.
+-   **Setup (Phase 1)**: No dependencies - can start immediately.
+-   **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories.
+-   **User Stories (Phase 3+)**: All depend on Foundational phase completion.
+    *   User stories can then proceed in parallel (if staffed).
+    *   Or sequentially in priority order (P1 → P2).
+-   **Polish (Final Phase)**: Depends on all desired user stories being complete.
 
 ### User Story Dependencies
 
--   User Story 1 (P1) is independent, but its tasks have internal dependencies.
+-   **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories.
+-   **User Story 2 (P2)**: Can start after Foundational (Phase 2) - Enhances US1's content extraction.
 
 ### Within Each User Story
 
--   Implementation tasks (T006-T012) are logically ordered to minimize dependencies. T011 depends on T006-T010. T016 depends on T011 and T012.
--   Tests (if generated) for a specific task should run before its implementation.
+-   Models before services.
+-   Core implementation before integration.
+-   Story complete before moving to next priority.
 
 ### Parallel Opportunities
 
--   Within Phase 3, tasks T006-T010 (individual utility functions) can be developed in parallel, but their integration into T011 (ingest_book) is sequential.
--   T013 (Error Handling) and T014 (Logging) can be integrated progressively throughout the implementation of T006-T012.
--   T015 (Validation Script) can be developed in parallel with T006-T012 once basic ingestion is functional.
+-   **Phase 1**: T002, T003 can be done in parallel.
+-   **Phase 3**: T010, T011, T012 can be done in parallel once `TextChunk` and clients are initialized.
+
+---
+
+## Parallel Example: User Story 1
+
+```bash
+# Once Foundational Phase is complete, T010, T011, T012 can run in parallel:
+# (These tasks involve external API calls and Playwright, which can be setup concurrently)
+Task: "Implement primary content extraction function using Playwright (e.g., `extract_content_playwright`) in `backend/main.py`"
+Task: "Implement embedding generation function using Cohere API (e.g., `generate_embedding_cohere`) in `backend/main.py`"
+Task: "Implement Qdrant storage function (e.g., `store_chunks_in_qdrant`) to upsert vectors and payloads in `backend/main.py`"
+```
+
+---
 
 ## Implementation Strategy
 
-### MVP First (Functional Ingestion Pipeline)
+### MVP First (User Story 1 Only)
 
-1.  Complete Phase 1: Setup.
-2.  Complete Phase 2: Foundational.
-3.  Complete core functions of Phase 3 (T006, T007, T008, T009, T010, T012) to create an ingest_book function.
-4.  Execute T011 (`ingest_book`) to verify basic data ingestion into Qdrant.
-5.  **STOP and VALIDATE**: Verify that the Qdrant database is populated with basic embeddings.
+1.  Complete Phase 1: Setup
+2.  Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3.  Complete Phase 3: User Story 1
+4.  **STOP and VALIDATE**: Test User Story 1 independently
+5.  Deploy/demo if ready
 
 ### Incremental Delivery
 
-1.  Implement and thoroughly test each utility function (T006-T010) individually.
-2.  Integrate these functions into the main `ingest_book` orchestrator (T011).
-3.  Progressively add error handling (T013) and logging (T014).
-4.  Develop the validation script (T015) to confirm data integrity.
-5.  Implement the main execution logic (T016).
+1.  Complete Setup + Foundational → Foundation ready
+2.  Add User Story 1 → Test independently → Deploy/Demo (MVP!)
+3.  Add User Story 2 → Test independently → Deploy/Demo
+4.  Each story adds value without breaking previous stories
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1.  Team completes Setup + Foundational together
+2.  Once Foundational is done:
+    *   Developer A: User Story 1
+    *   Developer B: User Story 2
+3.  Stories complete and integrate independently
+
+---
 
 ## Notes
 

@@ -1,61 +1,91 @@
-# Feature Specification: RAG Pipeline Setup & Embedding Storage
+## Spec 3: RAG Pipeline Setup & Embedding Storage
 
-**Feature Branch**: `main`
-**Created**: 2025-12-21
-**Status**: Draft
-**Input**: User description: "SPEC NAME: Spec 3: RAG Pipeline Setup & Embedding Storage CONTEXT: - Project: AI-native textbook + RAG chatbot system. - Phase 2 focuses on **retrieval-augmented generation (RAG) integration**. - Deployment URLs of frontend are available and will be used for pipeline testing. OBJECTIVE: - Build a **RAG pipeline** that extracts content from the textbook, creates embeddings, and stores them in a vector database. - Use **Cohere embedding model `embed-english-v3.0`** for generating embeddings. - Store vectors in **Qdrant** for retrieval. - Scaffold backend code to support later RAG retrieval by the agent. SCOPE: Includes: - Extracting and processing textbook content - Generating embeddings using Cohere `embed-english-v3.0` - Storing embeddings in Qdrant - Using **deployed frontend URLs** for data verification - Setting up **FastAPI backend structure** to host the pipeline ARCHITECTURE PRINCIPLES: - Backend code lives in `backend` folder - Use **uv package** project initialization - All Phase 2 pipeline code in **single modular file** (e.g., `main.py`) - Clean, maintainable, and scalable design for future agent integration"
+### 1. Overview
 
-## User Scenarios & Testing (mandatory)
+This specification outlines the development of a Retrieval-Augmented Generation (RAG) pipeline for an AI-native textbook and chatbot system. The primary goal is to extract content from the textbook, generate embeddings using the Cohere `embed-english-v3.0` model, and store these embeddings in a Qdrant vector database. The backend code will be scaffolded to support future RAG retrieval by the agent, with Playwright integrated as a robust fallback for content extraction.
 
-### User Story 1 - Textbook Content Extraction & Embedding (Priority: P1)
+### 2. Goals
 
-As a system administrator, I need to extract all relevant content from the deployed Docusaurus textbook, generate embeddings for each meaningful chunk of text using Cohere `embed-english-v3.0`, and store these embeddings, along with their original text and metadata, into a Qdrant vector database. This will enable the RAG chatbot to retrieve relevant information from the textbook.
+*   Build a RAG pipeline that extracts content from the textbook, creates embeddings, and stores them in a vector database.
+*   Utilize the Cohere embedding model `embed-english-v3.0` for generating embeddings.
+*   Store generated vectors in Qdrant for efficient retrieval.
+*   Scaffold backend code to enable subsequent RAG retrieval functionality by the agent.
+*   Implement Playwright as a fallback mechanism to ensure robust content extraction if traditional scraping methods fail.
 
-**Why this priority**: This is the foundational step for the entire RAG pipeline, making textbook content searchable and retrievable. Without it, the RAG chatbot cannot function.
+### 3. Non-Goals
 
-**Independent Test**: Can be fully tested by running the RAG pipeline script against the deployed frontend URLs, verifying that the Qdrant database is populated with a sufficient number of embeddings, and that a sample query returns relevant text chunks.
+*   Implementation of the RAG chatbot interaction logic.
+*   Deployment of the Qdrant vector database (assumed to be externally managed or provided).
+*   Development of a user interface for managing the RAG pipeline.
+*   Real-time processing of content changes (initial implementation focuses on batch ingestion).
 
-**Acceptance Scenarios**:
+### 4. User Scenarios & Testing
 
-1.  **Given** the Docusaurus frontend is deployed at a known URL, **When** the RAG pipeline is executed, **Then** it successfully extracts text content from all chapters of the textbook.
-2.  **Given** extracted text content, **When** embeddings are generated using Cohere `embed-english-v3.0`, **Then** the Cohere API is successfully called, and vector embeddings are created.
-3.  **Given** generated embeddings, **When** the Qdrant database is initialized and populated, **Then** all embeddings are successfully stored in Qdrant with associated metadata (e.g., source chapter, original text chunk).
-4.  **Given** a populated Qdrant database, **When** a sample text query related to the textbook content is executed against Qdrant, **Then** it returns relevant text chunks from the textbook.
+**User Role:** System Administrator / Automated Content Ingestion Process
 
----
+**Scenario 1: Successful Textbook Content Ingestion and Embedding**
+*   **Given** accessible deployment URLs for the frontend textbook content.
+*   **When** the RAG pipeline is triggered for content ingestion.
+*   **Then** all specified textbook content is successfully extracted.
+*   **And** embeddings are generated for the extracted content using the Cohere `embed-english-v3.0` model.
+*   **And** these embeddings, along with relevant metadata, are stored in the Qdrant vector database.
+*   **And** the backend exposes a functional interface for RAG retrieval.
 
-### Edge Cases
+**Scenario 2: Robust Content Extraction using Playwright Fallback**
+*   **Given** an attempt to extract content from a textbook URL fails using the primary extraction method.
+*   **When** Playwright is invoked as the fallback content extraction mechanism.
+*   **Then** Playwright successfully extracts the content from the problematic URL.
+*   **And** the extracted content proceeds through the embedding generation and storage steps as in Scenario 1.
 
--   What happens when a deployed frontend URL is inaccessible? (System should log an error and attempt to proceed with other URLs or retry).
--   How does the system handle very large chapters or documents during embedding generation? (Should handle chunking appropriately to stay within model token limits).
--   What happens if the Cohere API rate limit is hit? (System should implement retry logic with exponential backoff).
--   What happens if Qdrant is unavailable during storage? (System should implement retry logic or report a critical error).
+### 5. Functional Requirements
 
-## Requirements (mandatory)
+*   **FR1: Content Extraction:** The pipeline SHALL extract content from a list of provided frontend textbook URLs.
+    *   **FR1.1:** The pipeline SHALL support a primary content extraction method.
+    *   **FR1.2:** The pipeline SHALL implement Playwright as a fallback mechanism for content extraction when the primary method fails.
+*   **FR2: Embedding Generation:** The pipeline SHALL generate embeddings for extracted text chunks using the Cohere `embed-english-v3.0` model.
+*   **FR3: Vector Storage:** The pipeline SHALL store the generated embeddings and associated metadata (e.g., source URL, chapter, section) in a Qdrant vector database collection.
+*   **FR4: Backend Scaffolding for Retrieval:** The backend application SHALL expose an API endpoint or function that allows agents to query the Qdrant database for relevant text chunks based on a given query embedding.
 
-### Functional Requirements
+### 6. Non-Functional Requirements
 
--   **FR-001**: The system MUST extract content from the deployed Docusaurus frontend using its public URLs.
--   **FR-002**: The system MUST use the Cohere `embed-english-v3.0` model for generating text embeddings.
--   **FR-003**: The system MUST store the generated embeddings in a Qdrant vector database.
--   **FR-004**: The system MUST include the original text chunk and relevant metadata (e.g., chapter title, module name, page URL) alongside each embedding in Qdrant.
--   **FR-005**: The backend MUST be structured using FastAPI.
--   **FR-006**: All RAG pipeline code for this phase MUST reside in a single modular file (e.g., `main.py`) within the `backend` folder.
--   **FR-007**: The system MUST be initialized using the `uv package` for dependency management.
--   **FR-008**: The pipeline MUST be designed for clean, maintainable, and scalable integration with future agent retrieval logic.
+*   **Performance:**
+    *   **NFR1.1:** Content extraction for a single textbook page SHALL complete within 30 seconds.
+    *   **NFR1.2:** Embedding generation for a typical text chunk (e.g., 500 tokens) SHALL complete within 5 seconds.
+    *   **NFR1.3:** Storage of an embedding and its metadata in Qdrant SHALL complete within 100 milliseconds.
+*   **Scalability:** The RAG pipeline SHALL be designed to accommodate future growth in textbook content volume and number of URLs without significant architectural changes.
+*   **Reliability:** The content extraction process SHALL be resilient to common web scraping challenges (e.g., dynamic content, anti-bot measures) through the use of Playwright as a fallback.
+*   **Maintainability:** The backend code SHALL adhere to established coding standards, be modular, and well-documented to facilitate future enhancements and integration by the agent.
+*   **Security:** Access to the Cohere API and Qdrant database SHALL be managed securely, utilizing environment variables or a secrets management system.
 
-### Key Entities
+### 7. Data Model/Key Entities
 
--   **Text Chunk**: A segment of text extracted from the textbook.
--   **Embedding**: A vector representation of a text chunk generated by Cohere `embed-english-v3.0`.
--   **Vector Database (Qdrant)**: Stores embeddings and associated metadata, enabling semantic search.
--   **Metadata**: Information associated with each text chunk, such as source chapter, module, URL.
+*   **Text Chunk:**
+    *   `id`: Unique identifier (UUID).
+    *   `content`: The textual content extracted from the textbook.
+    *   `metadata`:
+        *   `source_url`: URL of the page from which the content was extracted.
+        *   `chapter`: (Optional) Chapter title.
+        *   `section`: (Optional) Section title.
+        *   `page_number`: (Optional) Page number.
+        *   `timestamp`: Time of extraction/embedding.
+*   **Embedding:**
+    *   `vector`: Numerical representation (list of floats) generated by Cohere.
+*   **Qdrant Collection:**
+    *   A dedicated collection in Qdrant will store Text Chunk IDs, embeddings, and metadata.
 
-## Success Criteria (mandatory)
+### 8. Technical Considerations/Assumptions
 
-### Measurable Outcomes
+*   Frontend textbook URLs will be stable and consistently available for extraction.
+*   The `uv package` in the `backend` folder is fully initialized, and all necessary Python dependencies are already installed and managed.
+*   Access to the Cohere embedding model API (`embed-english-v3.0`) is configured and authenticated.
+*   A Qdrant instance is accessible via a network endpoint with appropriate authentication.
+*   The core pipeline logic will reside in a single modular Python file, likely `main.py`, within the `backend` directory.
+*   Playwright will be installed and configured in the backend environment for fallback web scraping.
 
--   **SC-001**: 100% of the deployed textbook chapters are successfully extracted and processed by the RAG pipeline.
--   **SC-002**: All processed text chunks are successfully converted into embeddings using Cohere `embed-english-v3.0`.
--   **SC-003**: All generated embeddings are successfully stored in Qdrant, each with correct metadata.
--   **SC-004**: A sample query for a textbook topic returns the top 3 most relevant textbook chunks from Qdrant with an accuracy of >80% (judged manually).
+### 9. Success Criteria
+
+*   100% of specified textbook content URLs are successfully processed, resulting in valid embeddings stored in Qdrant.
+*   The Qdrant collection contains embeddings and metadata for all extracted content, allowing for efficient vector search.
+*   The scaffolded backend retrieval interface returns relevant text chunks when queried with appropriate embeddings.
+*   The Playwright fallback mechanism is demonstrably effective in extracting content from pages where the primary method fails.
+*   The backend codebase is clean, modular, and adheres to the `uv package` structure, ready for further agent integration.

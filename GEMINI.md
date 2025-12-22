@@ -1,4 +1,4 @@
-﻿# Gemini CLI Rules
+# Gemini CLI Rules
 
 This file is generated during init for the selected agent.
 
@@ -208,3 +208,14 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+## Agent Knowledge Base
+
+### Project Technologies
+
+-   **Language**: Python 3.11+
+-   **Backend Framework**: FastAPI
+-   **Web Scraping/Automation**: Playwright
+-   **Embedding Model**: Cohere `embed-english-v3.0`
+-   **Vector Database**: Qdrant
+-   **Package Manager**: uv

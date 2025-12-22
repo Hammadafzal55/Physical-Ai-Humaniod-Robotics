@@ -1,16 +1,28 @@
 import os
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uuid
 import re
 from functools import wraps
+from configparser import ConfigParser
+import datetime # Added
+from playwright.sync_api import sync_playwright, Error # Added Error
+from fastapi import FastAPI, HTTPException # Moved
+from fastapi.responses import JSONResponse # Moved
+from qdrant_client.http.models import Filter, FieldCondition, Range, MatchText, MatchValue # Moved
+import concurrent.futures # Added
+import sys # Added
+
+from pydantic import BaseModel, Field
 
 from dotenv import load_dotenv
-from requests_html import HTMLSession
-from bs4 import BeautifulSoup
+from trafilatura.sitemaps import sitemap_search
+
+# Removed unused imports: from requests_html import HTMLSession, from bs4 import BeautifulSoup
+
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import cohere
-from cohere.error import CohereAPIError
+from cohere.core.api_error import ApiError
 import qdrant_client
 from qdrant_client.http.models import Distance, VectorParams, PointStruct, UpdateStatus
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -37,136 +49,152 @@ if not QDRANT_HOST:
     # exit(1)
 
 cohere_client = cohere.Client(COHERE_API_KEY)
-qdrant_client_instance = qdrant_client.QdrantClient(host=QDRANT_HOST, api_key=QDRANT_API_KEY)
+qdrant_client_instance = qdrant_client.QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY, timeout=60)
 
+# --- FastAPI Application Instance ---
+app = FastAPI()
+
+# --- Pydantic Models for FastAPI Request/Response Bodies ---
+class RetrievalRequest(BaseModel):
+    """
+    Request model for the /retrieve endpoint.
+    Defines the query embedding, number of results, and optional filters.
+    """
+    query_embedding: List[float] = Field(..., description="The vector embedding of the query text.")
+    top_k: int = Field(5, ge=1, description="The number of top relevant text chunks to retrieve.")
+    filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters to apply to the retrieval query (e.g., by chapter, source_url).")
+
+class RetrievalResponseMetadata(BaseModel):
+    """
+    Metadata model for retrieved text chunks.
+    """
+    source_url: str = Field(..., description="URL of the page from which the content was extracted.")
+    chapter_title: Optional[str] = Field(None, description="The title of the chapter this chunk belongs to.")
+    module_name: Optional[str] = Field(None, description="The name of the module this chunk belongs to.")
+    timestamp: Optional[str] = Field(None, description="The timestamp when this chunk was extracted and processed (ISO 8601 format).")
+
+class RetrievalResponseChunk(BaseModel):
+    """
+    Response model for a single retrieved text chunk.
+    """
+    id: str = Field(..., description="Unique identifier of the text chunk.")
+    content: str = Field(..., description="The textual content of the chunk.")
+    metadata: RetrievalResponseMetadata = Field(..., description="Metadata associated with the text chunk.")
+
+# --- Pydantic Models for Internal Data Structures ---
+class TextChunkMetadata(BaseModel):
+    source_url: str
+    chapter_title: Optional[str] = None
+    module_name: Optional[str] = None
+    timestamp: Optional[str] = None # ISO 8601 format
+
+class TextChunk(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: str
+    metadata: TextChunkMetadata
 
 # --- Utility Functions ---
 
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=4, max=10),
-    retry=retry_if_exception_type(Exception), # Catch broader exceptions for now
+    retry=retry_if_exception_type((Exception, Error)), # Catch playwright-specific errors too
     reraise=True
 )
-def extract_text_from_url(url: str) -> Dict[str, Any]:
+def extract_text_from_url(url: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches HTML content from a given URL, parses it, and extracts clean text along with metadata.
+    Fetches content from a given URL using Playwright for robust rendering,
+    extracts clean text, and captures metadata.
     Includes retry logic for network requests.
     """
-    session = HTMLSession()
-    response = session.get(url)
-    response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-
-    # Use BeautifulSoup for parsing
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    # Remove script, style, and other non-text elements
-    for script_or_style in soup(['script', 'style', 'header', 'footer', 'nav', '.navbar', '.sidebar', '.table-of-contents']):
-        script_or_style.decompose()
-
-    # Extract title and other potential metadata
-    title = soup.find('h1').get_text(strip=True) if soup.find('h1') else url
-    # Basic attempt to get module/chapter names from URL path if Docusaurus specific structure is assumed
-    path_parts = [part for part in url.split('/') if part]
-    module_name = "Unknown Module"
-    chapter_title = "Unknown Chapter"
-
-    # Example: https://physical-ai-humaniod-robotics.vercel.app/docs/module-1-ros-2/introduction-to-physical-ai
-    if "docs" in path_parts:
+    logger.info(f"Attempting to extract content from {url} using Playwright.")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_default_timeout(20000) # Set default timeout for Playwright operations
         try:
-            docs_index = path_parts.index("docs")
-            if len(path_parts) > docs_index + 1:
-                module_slug = path_parts[docs_index + 1]
-                module_name = module_slug.replace('-', ' ').title() # Basic slug to name conversion
-            if len(path_parts) > docs_index + 2:
-                chapter_slug = path_parts[docs_index + 2]
-                chapter_title = chapter_slug.replace('-', ' ').title().replace('.Md', '') # Remove .md if present and title case
-        except ValueError:
-            pass # "docs" not in path_parts or other indexing issues
+            page.goto(url, wait_until="domcontentloaded", timeout=30000) # 30 seconds timeout
+            
+            text = ""
+            # Prioritize 'article' tag for main content
+            main_content_element = page.query_selector("article")
+            if main_content_element:
+                text = main_content_element.inner_text()
+            
+            # Fallback to body if no article or empty text
+            if not text:
+                logger.warning(f"No text extracted from 'article' tag for {url}. Attempting full page text.")
+                text = page.body().inner_text()
 
-    # Extract clean text
-    main_content = soup.find('article') # Docusaurus content is often within an <article> tag
-    if not main_content:
-        main_content = soup.find('main')
-    if not main_content:
-        main_content = soup.body
-        
-    text = main_content.get_text(separator=' ', strip=True)
-    # Clean up multiple spaces and newlines
-    text = re.sub(r'\s+', ' ', text).strip()
+            if not text:
+                logger.error(f"Playwright extracted empty content from {url}.")
+                return None
 
-    logger.info(f"Successfully extracted text from {url}")
-    return {
-        "text": text,
-        "metadata": {
-            "source_url": url,
-            "chapter_title": chapter_title,
-            "module_name": module_name,
-            # Add more metadata as needed
-        }
-    }
+            title = page.title() # Get page title
+            
+            # Refined metadata extraction
+            chapter_title = title.replace(" | Physical AI Humanoid Robotics", "").strip() if title else "Unknown Chapter"
+            module_name = "Unknown Module"
+            
+            path_parts = [part for part in url.split('/') if part]
+            if "docs" in path_parts:
+                try:
+                    docs_index = path_parts.index("docs")
+                    if len(path_parts) > docs_index + 1:
+                        module_slug = path_parts[docs_index + 1]
+                        module_name = module_slug.replace('-', ' ').title() # Basic slug to name conversion
+                except ValueError:
+                    pass # "docs" not in path_parts or other indexing issues
+            
+            # Remove the page_number as it's not needed.
+            # Set timestamp directly
+            timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat() # ISO 8601 timestamp
+
+            logger.info(f"Successfully extracted text from {url} using Playwright.")
+            return {
+                "text": text,
+                "metadata": {
+                    "source_url": url,
+                    "chapter_title": chapter_title,
+                    "module_name": module_name,
+                    "timestamp": timestamp,
+                }
+            }
+        except Exception as e:
+            logger.error(f"Playwright failed to extract content from {url}: {e}")
+            return None
+        finally:
+            browser.close()
+
+
 
 def chunk_text(text: str, max_chunk_chars: int = 1500, overlap_chars: int = 100) -> List[str]:
     """
-    Splits a long text into semantically meaningful chunks with overlap,
-    adhering to a maximum character limit (proxy for token limit).
-    This simple chunking prioritizes paragraph boundaries.
+    Splits a long text into fixed-size chunks with overlap.
+    This is a simpler and more robust chunking strategy.
     """
     chunks = []
-    paragraphs = text.split('\n\n') # Split by paragraph
-
-    current_chunk = ""
-    for paragraph in paragraphs:
-        if len(current_chunk) + len(paragraph) + 2 < max_chunk_chars: # +2 for potential newline
-            current_chunk += (paragraph + "\n\n")
-        else:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-            current_chunk = paragraph + "\n\n"
-
-            # If a single paragraph is too large, split it further by sentences
-            while len(current_chunk) > max_chunk_chars:
-                sentences = re.split(r'(?<=[.!?])\s+', current_chunk)
-                sub_chunk = ""
-                for sentence in sentences:
-                    if len(sub_chunk) + len(sentence) + 1 < max_chunk_chars:
-                        sub_chunk += (sentence + " ")
-                    else:
-                        if sub_chunk:
-                            chunks.append(sub_chunk.strip())
-                            # Add overlap
-                            overlap_start = max(0, len(sub_chunk) - overlap_chars)
-                            current_chunk = sub_chunk[overlap_start:] + current_chunk # Start new chunk with overlap
-                            break
-                        else: # Single sentence larger than max_chunk_chars
-                            chunks.append(current_chunk[:max_chunk_chars].strip())
-                            current_chunk = current_chunk[max_chunk_chars - overlap_chars:] # Overlap for very long sentences
-                            break
-                else: # If all sentences fit
-                    if sub_chunk:
-                        chunks.append(sub_chunk.strip())
-                    current_chunk = "" # No remaining text
-
-    if current_chunk:
-        chunks.append(current_chunk.strip())
+    current_position = 0
+    while current_position < len(text):
+        end_position = min(current_position + max_chunk_chars, len(text))
+        chunk = text[current_position:end_position]
+        chunks.append(chunk.strip())
+        current_position += (max_chunk_chars - overlap_chars)
+        # Ensure we don't go backwards or get stuck if overlap is too large
+        if current_position < 0:
+            current_position = 0 
     
-    # Final pass to ensure all chunks respect max_chunk_chars and add explicit overlap
-    final_chunks = []
-    for i, chunk in enumerate(chunks):
-        if len(chunk) > max_chunk_chars: # Re-chunk if paragraph/sentence logic failed for very long ones
-            for j in range(0, len(chunk), max_chunk_chars - overlap_chars):
-                sub_chunk = chunk[j : j + max_chunk_chars]
-                final_chunks.append(sub_chunk.strip())
-        else:
-            final_chunks.append(chunk)
+    # Handle the case where the last chunk might be a duplicate if it perfectly aligns
+    if len(chunks) > 1 and chunks[-1] == chunks[-2]:
+        chunks.pop()
 
-    logger.info(f"Chunked text into {len(final_chunks)} chunks.")
-    return final_chunks
+    logger.info(f"Chunked text into {len(chunks)} chunks.")
+    return chunks
 
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=4, max=10),
-    retry=retry_if_exception_type(CohereAPIError),
+    retry=retry_if_exception_type(ApiError),
     reraise=True
 )
 def embed(texts: List[str]) -> List[List[float]]:
@@ -176,7 +204,7 @@ def embed(texts: List[str]) -> List[List[float]]:
     """
     if not texts:
         return []
-    
+
     logger.info(f"Generating embeddings for {len(texts)} texts using Cohere...")
     response = cohere_client.embed(
         texts=texts,
@@ -194,7 +222,7 @@ def embed(texts: List[str]) -> List[List[float]]:
     reraise=True
 )
 def create_collection(
-    collection_name: str, 
+    collection_name: str,
     vector_size: int = 1024, # Cohere embed-english-v3.0 default
     distance_metric: Distance = Distance.COSINE
 ):
@@ -209,12 +237,7 @@ def create_collection(
             vectors_config=VectorParams(size=vector_size, distance=distance_metric),
         )
         # Define payload schema for better filtering and indexing
-        qdrant_client_instance.update_collection(
-            collection_name=collection_name,
-            optimizer_config=qdrant_client_instance.get_collection(collection_name).optimizer_config,
-            # Add payload_schema definitions for metadata fields here if Qdrant version supports it
-            # For newer Qdrant versions, index creation is typically separate
-        )
+
         # Ensure fields are indexed for filtering
         qdrant_client_instance.create_payload_index(
             collection_name=collection_name,
@@ -241,23 +264,21 @@ def create_collection(
     retry=retry_if_exception_type(UnexpectedResponse),
     reraise=True
 )
-def save_chunk_to_qdrant(collection_name: str, text_chunk: Dict[str, Any], embedding: List[float]):
+def save_chunk_to_qdrant(collection_name: str, text_chunk: TextChunk, embedding: List[float]):       
     """
     Stores a text chunk and its embedding in the specified Qdrant collection.
     """
-    point_id = str(uuid.uuid4()) # Generate a unique ID for the point
-    
     # Ensure all metadata fields are present, even if empty
     payload = {
-        "content": text_chunk["text"],
-        "source_url": text_chunk["metadata"].get("source_url", "unknown"),
-        "chapter_title": text_chunk["metadata"].get("chapter_title", "unknown"),
-        "module_name": text_chunk["metadata"].get("module_name", "unknown"),
-        # Add other metadata fields if available
+        "content": text_chunk.content,
+        "source_url": text_chunk.metadata.source_url,
+        "chapter_title": text_chunk.metadata.chapter_title,
+        "module_name": text_chunk.metadata.module_name,
+        "timestamp": text_chunk.metadata.timestamp,
     }
 
     point = PointStruct(
-        id=point_id,
+        id=text_chunk.id,
         vector=embedding,
         payload=payload
     )
@@ -268,9 +289,9 @@ def save_chunk_to_qdrant(collection_name: str, text_chunk: Dict[str, Any], embed
         wait=True,
     )
     if response.status == UpdateStatus.COMPLETED:
-        logger.debug(f"Successfully saved chunk {point_id} to Qdrant.")
+        logger.debug(f"Successfully saved chunk {text_chunk.id} to Qdrant.")
     else:
-        logger.error(f"Failed to save chunk {point_id} to Qdrant: {response.status}")
+        logger.error(f"Failed to save chunk {text_chunk.id} to Qdrant: {response.status}")
         raise Exception(f"Failed to upsert to Qdrant: {response.status}")
 
 def ingest_book(collection_name: str, textbook_urls: List[str]):
@@ -281,6 +302,7 @@ def ingest_book(collection_name: str, textbook_urls: List[str]):
     3. Chunks text into semantically meaningful pieces.
     4. Generates embeddings for each chunk.
     5. Stores embeddings and metadata in Qdrant.
+    Processes URLs in parallel.
     """
     if not textbook_urls:
         logger.warning("No textbook URLs provided for ingestion.")
@@ -289,72 +311,91 @@ def ingest_book(collection_name: str, textbook_urls: List[str]):
     vector_size = 1024 # Cohere embed-english-v3.0 default
     create_collection(collection_name, vector_size)
 
-    for url in textbook_urls:
-        logger.info(f"Processing URL: {url}")
-        try:
-            extracted_data = extract_text_from_url(url)
-            text = extracted_data["text"]
-            metadata = extracted_data["metadata"]
+    # Process URLs in parallel
+    MAX_WORKERS = 4 # Adjust based on system resources and API limits
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_url = {executor.submit(_process_single_url, url, collection_name, vector_size): url for url in textbook_urls}
+        for future in concurrent.futures.as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                # Result is just for exception handling, actual data is stored within _process_single_url
+                future.result() 
+                logger.info(f"Finished processing and ingesting from URL: {url}")
+            except Exception as e:
+                logger.error(f"Error processing URL {url} in parallel: {e}")
 
-            chunks = chunk_text(text)
+def _process_single_url(url: str, collection_name: str, vector_size: int):
+    """
+    Helper function to process a single URL for parallel execution.
+    """
+    logger.info(f"Processing URL: {url}")
+    # Basic URL validation
+    if not re.match(r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+", url):
+        logger.error(f"Invalid URL format: {url}. Skipping.")
+        return
+
+    extracted_data = extract_text_from_url(url)
+    if not extracted_data:
+        logger.warning(f"Could not extract data for URL: {url}. Skipping ingestion.")
+        return
+    
+    text = extracted_data["text"]
+    metadata = extracted_data["metadata"]
+
+    logger.info(f"Chunking text for URL: {url}")
+    chunks = chunk_text(text)
+    logger.info(f"Finished chunking text for URL: {url}. Number of chunks: {len(chunks)}")
+
+    # Process chunks in batches to optimize Cohere API calls
+    batch_size = 96
+    for i in range(0, len(chunks), batch_size):
+        chunk_batch = chunks[i : i + batch_size]
+        logger.info(f"Generating embeddings for batch {i//batch_size + 1}/{len(chunks)//batch_size + 1} of URL: {url}")
+        embeddings_batch = embed(chunk_batch)
+        logger.info(f"Finished generating embeddings for batch {i//batch_size + 1} of URL: {url}")
+
+        for j, chunk in enumerate(chunk_batch):
+            full_metadata_dict = metadata.copy()
             
-            # Process chunks in batches to optimize Cohere API calls
-            batch_size = 96 # Cohere API limit is 96 texts per request
-            for i in range(0, len(chunks), batch_size):
-                chunk_batch = chunks[i : i + batch_size]
-                embeddings_batch = embed(chunk_batch)
+            # Create TextChunkMetadata instance
+            metadata_instance = TextChunkMetadata(
+                source_url=full_metadata_dict.get("source_url"),
+                chapter_title=full_metadata_dict.get("chapter_title"),
+                module_name=full_metadata_dict.get("module_name"),
+                timestamp=full_metadata_dict.get("timestamp"),
+            )
 
-                for j, chunk in enumerate(chunk_batch):
-                    full_metadata = metadata.copy()
-                    full_metadata["content"] = chunk # Store original chunk text in payload
-                    full_metadata["chunk_number"] = i + j
-                    
-                    # Create a TextChunk-like dictionary for save_chunk_to_qdrant
-                    text_chunk_payload = {
-                        "text": chunk,
-                        "metadata": full_metadata
-                    }
-                    save_chunk_to_qdrant(collection_name, text_chunk_payload, embeddings_batch[j])
-            logger.info(f"Finished processing and ingesting from URL: {url}")
-
-        except Exception as e:
-            logger.error(f"Error processing URL {url}: {e}")
+            # Create TextChunk instance
+            text_chunk_instance = TextChunk(
+                content=chunk,
+                metadata=metadata_instance
+            )
+            logger.debug(f"Saving chunk {j+1}/{len(chunk_batch)} to Qdrant for URL: {url}")
+            save_chunk_to_qdrant(collection_name, text_chunk_instance, embeddings_batch[j])
+            logger.debug(f"Finished saving chunk {j+1}/{len(chunk_batch)} to Qdrant for URL: {url}")
 
 def get_textbook_chapter_urls() -> List[str]:
     """
-    Fetches a list of deployed Docusaurus chapter URLs from the TEXTBOOK_URLS environment variable.
+    Fetches a list of deployed Docusaurus chapter URLs from a sitemap URL 
+    provided in the TEXTBOOK_URLS environment variable.
     """
-    textbook_urls_str = os.getenv("TEXTBOOK_URLS")
-    if not textbook_urls_str:
+    sitemap_url = os.getenv("TEXTBOOK_URLS")
+    if not sitemap_url:
         logger.error("TEXTBOOK_URLS environment variable not set.")
         return []
     
-    urls = [url.strip() for url in textbook_urls_str.split(',') if url.strip()]
-    logger.info(f"Loaded {len(urls)} textbook URLs from environment variables.")
-    return urls
-
-# --- Main execution logic (will be implemented in T016) ---
-if __name__ == "__main__":
-    logger.info("Starting RAG Pipeline ingestion.")
+    # We assume the TEXTBOOK_URLS contains a single URL to the sitemap
+    urls = sitemap_search(sitemap_url)
     
-    COLLECTION_NAME = "textbook_embeddings"
-    TEXTBOOK_URLS = get_textbook_chapter_urls()
+    if not urls:
+        logger.warning(f"No URLs found in the sitemap: {sitemap_url}")
+        return []
 
-    if not TEXTBOOK_URLS:
-        logger.error("No textbook URLs found. Please set TEXTBOOK_URLS environment variable.")
-    else:
-        try:
-            ingest_book(COLLECTION_NAME, TEXTBOOK_URLS)
-            logger.info("RAG Pipeline ingestion completed successfully.")
-            
-            # Verify data in Qdrant after ingestion
-            logger.info("Starting Qdrant data verification.")
-            if verify_qdrant_data(COLLECTION_NAME):
-                logger.info("Qdrant data verification successful.")
-            else:
-                logger.warning("Qdrant data verification failed or returned no results.")
-        except Exception as e:
-            logger.critical(f"RAG Pipeline ingestion failed: {e}", exc_info=True)
+    # Filter out non-content pages if possible (example: ignore sitemap.xml itself)
+    urls = [url for url in urls if not url.endswith('.xml')]
+
+    logger.info(f"Loaded {len(urls)} textbook URLs from sitemap: {sitemap_url}")
+    return urls
 
 def verify_qdrant_data(collection_name: str, query_text: str = "What are the main components of ROS 2?", limit: int = 3):
     """
@@ -377,19 +418,19 @@ def verify_qdrant_data(collection_name: str, query_text: str = "What are the mai
         query_embedding = query_embedding_response.embeddings[0]
 
         # Search Qdrant
-        search_result = qdrant_client_instance.search(
+        search_result = qdrant_client_instance.query_points(
             collection_name=collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=limit,
             with_payload=True
         )
 
-        if not search_result:
+        if not search_result.points:
             logger.warning(f"No results found for query '{query_text}' in collection '{collection_name}'.")
             return
 
         logger.info(f"Top {limit} results for query: '{query_text}'")
-        for hit in search_result:
+        for hit in search_result.points:
             logger.info(f"  Score: {hit.score}")
             logger.info(f"  Text: {hit.payload['content'][:200]}...") # Print first 200 chars
             logger.info(f"  Source: {hit.payload['source_url']}")
@@ -403,4 +444,74 @@ def verify_qdrant_data(collection_name: str, query_text: str = "What are the mai
         return False
 
 
+@app.post("/retrieve", response_model=List[RetrievalResponseChunk])
+async def retrieve_chunks(request: RetrievalRequest):
+    """
+    Retrieves relevant text chunks from Qdrant based on a query embedding.
+    """
+    try:
+        query_vector = request.query_embedding
+        collection_name = "textbook_embeddings" # Assuming a default collection name
 
+        # Construct filters if provided
+        qdrant_filter = None
+        if request.filters:
+            must_conditions = []
+            for field, value in request.filters.items():
+                must_conditions.append(FieldCondition(key=field, match=MatchValue(value=value)))
+            qdrant_filter = Filter(must=must_conditions)
+
+        search_result = qdrant_client_instance.query_points(
+            collection_name=collection_name,
+            query=query_vector,
+            limit=request.top_k,
+            query_filter=qdrant_filter,
+            with_payload=True,
+        )
+
+        response_chunks = []
+        for hit in search_result.points:
+            payload = hit.payload
+            metadata = RetrievalResponseMetadata(
+                source_url=payload.get("source_url", ""),
+                chapter_title=payload.get("chapter_title"),
+                module_name=payload.get("module_name"),
+                page_number=payload.get("page_number"),
+                timestamp=payload.get("timestamp"),
+            )
+            response_chunks.append(RetrievalResponseChunk(
+                id=str(hit.id), # Ensure ID is string
+                content=payload.get("content", ""),
+                metadata=metadata
+            ))
+        return response_chunks
+    except Exception as e:
+        logger.error(f"Error during retrieval: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
+# --- Main execution logic for direct script execution ---
+if __name__ == "__main__":
+    logger.info("Starting RAG Pipeline ingestion process if run as a script.")
+
+    COLLECTION_NAME = "Physical Ai Book"
+    
+    # Attempt to get textbook URLs from sitemap
+    TEXTBOOK_URLS = get_textbook_chapter_urls()
+
+    if not TEXTBOOK_URLS:
+        logger.error("No textbook URLs found. Please ensure TEXTBOOK_URLS environment variable (sitemap URL) is set and valid.")
+    else:
+        try:
+            # Perform the ingestion
+            ingest_book(COLLECTION_NAME, TEXTBOOK_URLS)
+            logger.info("RAG Pipeline ingestion completed successfully.")
+
+            # Optional: Verify data in Qdrant after ingestion
+            logger.info("Starting Qdrant data verification with a sample query.")
+            if verify_qdrant_data(COLLECTION_NAME):
+                logger.info("Qdrant data verification successful.")
+            else:
+                logger.warning("Qdrant data verification failed or returned no results.")
+        except Exception as e:
+            logger.critical(f"RAG Pipeline ingestion failed: {e}", exc_info=True)
+            sys.exit(1) # Exit with an error code on critical failure
