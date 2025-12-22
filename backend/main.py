@@ -18,6 +18,10 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from trafilatura.sitemaps import sitemap_search
 
+# Imports from retrieval.py
+from retrieval import retrieve_context, RetrievedChunk, RetrievalQueryParams, RetrievalServiceMetadata # Corrected import
+
+
 # Removed unused imports: from requests_html import HTMLSession, from bs4 import BeautifulSoup
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -58,9 +62,9 @@ app = FastAPI()
 class RetrievalRequest(BaseModel):
     """
     Request model for the /retrieve endpoint.
-    Defines the query embedding, number of results, and optional filters.
+    Defines the user query, number of results, and optional filters.
     """
-    query_embedding: List[float] = Field(..., description="The vector embedding of the query text.")
+    query: str = Field(..., description="The natural language user query.")
     top_k: int = Field(5, ge=1, description="The number of top relevant text chunks to retrieve.")
     filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters to apply to the retrieval query (e.g., by chapter, source_url).")
 
@@ -447,41 +451,27 @@ def verify_qdrant_data(collection_name: str, query_text: str = "What are the mai
 @app.post("/retrieve", response_model=List[RetrievalResponseChunk])
 async def retrieve_chunks(request: RetrievalRequest):
     """
-    Retrieves relevant text chunks from Qdrant based on a query embedding.
+    Retrieves relevant text chunks using the retrieval pipeline.
     """
     try:
-        query_vector = request.query_embedding
-        collection_name = "textbook_embeddings" # Assuming a default collection name
-
-        # Construct filters if provided
-        qdrant_filter = None
-        if request.filters:
-            must_conditions = []
-            for field, value in request.filters.items():
-                must_conditions.append(FieldCondition(key=field, match=MatchValue(value=value)))
-            qdrant_filter = Filter(must=must_conditions)
-
-        search_result = qdrant_client_instance.query_points(
-            collection_name=collection_name,
-            query=query_vector,
-            limit=request.top_k,
-            query_filter=qdrant_filter,
-            with_payload=True,
+        retrieved_results = retrieve_context(
+            query=request.query,
+            top_k=request.top_k,
+            filters=request.filters,
+            collection_name="Physical Ai Book" # Explicitly pass the collection name
         )
 
         response_chunks = []
-        for hit in search_result.points:
-            payload = hit.payload
+        for chunk in retrieved_results:
             metadata = RetrievalResponseMetadata(
-                source_url=payload.get("source_url", ""),
-                chapter_title=payload.get("chapter_title"),
-                module_name=payload.get("module_name"),
-                page_number=payload.get("page_number"),
-                timestamp=payload.get("timestamp"),
+                source_url=chunk.metadata.source_url,
+                chapter_title=chunk.metadata.chapter_title,
+                module_name=chunk.metadata.module_name,
+                timestamp=chunk.metadata.timestamp,
             )
             response_chunks.append(RetrievalResponseChunk(
-                id=str(hit.id), # Ensure ID is string
-                content=payload.get("content", ""),
+                id=chunk.id,
+                content=chunk.content,
                 metadata=metadata
             ))
         return response_chunks
