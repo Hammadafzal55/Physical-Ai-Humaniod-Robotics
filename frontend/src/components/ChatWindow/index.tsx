@@ -10,7 +10,7 @@ interface ChatMessage {
 }
 
 const API_BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://your-production-backend-url.com' // Replace with your production URL
+  ? 'https://hammad231-backend.hf.space/' // Replace with your production URL
   : 'http://localhost:8000'; // Default for development
 
 const ChatWindow: React.FC = () => {
