@@ -219,3 +219,4 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 -   **Embedding Model**: Cohere `embed-english-v3.0`
 -   **Vector Database**: Qdrant
 -   **Package Manager**: uv
+-   **LLM API**: Google Gemini API

@@ -1,0 +1,22 @@
+.chatLauncher {
+  position: fixed;
+  bottom: 20px; /* Adjust as needed */
+  right: 20px; /* Adjust as needed */
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--ifm-color-primary); /* Docusaurus primary color */
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: none;
+  z-index: 1000; /* Ensure it's above other content */
+}
+
+.chatLauncher:hover {
+  background-color: var(--ifm-color-primary-dark);
+}

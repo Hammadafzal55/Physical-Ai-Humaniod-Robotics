@@ -1,27 +1,19 @@
-import React, { useEffect } from 'react';
+import React, {type ReactNode} from 'react';
 import Layout from '@theme-original/Layout';
-import type { Props } from '@theme/Layout';
+import type LayoutType from '@theme/Layout';
+import type {WrapperProps} from '@docusaurus/types';
+import { ChatProvider } from '../../context/ChatContext';
+import ChatLauncher from '../../components/ChatLauncher'; // Import ChatLauncher
+import ChatWindow from '../../components/ChatWindow';   // Import ChatWindow
 
-export default function LayoutWrapper(props: Props): JSX.Element {
-  useEffect(() => {
-    const handleScroll = () => {
-      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrolled = (winScroll / height) * 100;
-      const progressBar = document.getElementById("scroll-progress-bar");
-      if (progressBar) progressBar.style.width = scrolled + "%";
-    };
+type Props = WrapperProps<typeof LayoutType>;
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
+export default function LayoutWrapper(props: Props): ReactNode {
   return (
-    <>
-      <div className="scroll-progress-container">
-        <div className="scroll-progress-bar" id="scroll-progress-bar"></div>
-      </div>
+    <ChatProvider>
       <Layout {...props} />
-    </>
+      <ChatLauncher /> {/* Render ChatLauncher */}
+      <ChatWindow />   {/* Render ChatWindow */}
+    </ChatProvider>
   );
 }

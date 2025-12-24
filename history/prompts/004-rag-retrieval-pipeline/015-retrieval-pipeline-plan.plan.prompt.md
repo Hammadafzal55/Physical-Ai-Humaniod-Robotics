@@ -1,5 +1,5 @@
 ---
-id: 002
+id: 015
 title: Retrieval Pipeline Plan
 stage: plan
 date: 2025-12-22

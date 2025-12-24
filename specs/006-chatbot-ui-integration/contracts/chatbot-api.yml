@@ -1,0 +1,60 @@
+# OpenAPI 3.0 Specification for Chatbot
+openapi: 3.0.0
+info:
+  title: "Chatbot API"
+  version: "1.0.0"
+  description: "API for the Physical AI Textbook RAG chatbot."
+
+paths:
+  /chat:
+    post:
+      summary: "Get a response from the RAG agent"
+      description: |
+        Sends a user's query to the backend agent and receives a response.
+        The response is streamed as a series of text chunks.
+      operationId: "chat_with_agent"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: "A streaming response of text chunks from the agent."
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: "data: Hello! This is the first chunk.\n\ndata: This is the second chunk.\n\n"
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: "Service Unavailable (Agent not initialized)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: "The user's question for the agent."
+          example: "What are the main components of ROS 2?"
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: "A human-readable error message."
