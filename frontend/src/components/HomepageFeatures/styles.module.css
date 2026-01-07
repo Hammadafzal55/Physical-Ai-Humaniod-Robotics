@@ -1,26 +1,318 @@
+/* ============================================
+   FEATURES SECTION STYLES
+   ============================================ */
+
+/* Main features section */
 .features {
+  position: relative;
+  padding: 6rem 0;
+  background: var(--ifm-background-color);
+  overflow: hidden;
+}
+
+/* Background orbs for features */
+.featuresBg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.featureOrb1 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.1);
+  filter: blur(80px);
+  top: -100px;
+  left: -100px;
+  animation: floatOrb1 10s ease-in-out infinite;
+}
+
+.featureOrb2 {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: rgba(240, 147, 251, 0.1);
+  filter: blur(80px);
+  bottom: -50px;
+  right: -100px;
+  animation: floatOrb2 12s ease-in-out infinite;
+}
+
+/* Section header */
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: var(--text-gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.sectionSubtitle {
+  font-size: 1.1rem;
+  color: var(--ifm-text-color);
+  opacity: 0.7;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Feature card */
+.featureCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 30px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.featureCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.featureCard:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 20px 50px rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.featureCard:hover::before {
+  opacity: 1;
+}
+
+/* Card glow effect */
+.cardGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.featureCard:hover .cardGlow {
+  opacity: 1;
+}
+
+/* Icon wrapper */
+.iconWrapper {
+  position: relative;
+  margin-bottom: 1.5rem;
+  z-index: 1;
+}
+
+.iconBg {
   display: flex;
   align-items: center;
-  padding: 2rem 0;
-  width: 100%;
-  background-color: white; /* Day mode background */
-  color: black; /* Day mode text color */
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.4s ease;
 }
 
-[data-theme='dark'] .features {
-  background-color: black; /* Dark mode background */
-  color: white; /* Dark mode text color */
+.iconBg svg {
+  transition: all 0.4s ease;
 }
 
-.featureImage {
-  height: 200px;
-  width: 200px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+.featureCard:hover .iconBg {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
+
+.featureCard:hover .iconBg svg {
+  transform: scale(1.1);
+}
+
+/* Feature content */
+.featureContent {
+  position: relative;
+  z-index: 1;
+}
+
 .featureTitle {
-  font-weight: bold;
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ifm-text-color);
+  margin-bottom: 1rem;
+  transition: color 0.3s ease;
+}
+
+.featureCard:hover .featureTitle {
+  color: #667eea;
+}
+
+.featureDescription {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ifm-text-color);
+  opacity: 0.7;
+  margin: 0;
+  transition: opacity 0.3s ease;
+}
+
+.featureCard:hover .featureDescription {
+  opacity: 0.9;
+}
+
+/* Card arrow */
+.cardArrow {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ifm-text-color);
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.4s ease;
+}
+
+.featureCard:hover .cardArrow {
+  opacity: 1;
+  transform: translateX(0);
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #667eea;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media screen and (max-width: 1200px) {
+  .features {
+    padding: 5rem 0;
+  }
+
+  .sectionTitle {
+    font-size: 2.25rem;
+  }
+}
+
+@media screen and (max-width: 996px) {
+  .features {
+    padding: 4rem 0;
+  }
+
+  .sectionTitle {
+    font-size: 2rem;
+  }
+
+  .featureCard {
+    padding: 35px 25px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .features {
+    padding: 3rem 0;
+  }
+
+  .sectionHeader {
+    margin-bottom: 3rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 1rem;
+  }
+
+  .featureCard {
+    padding: 30px 20px;
+    margin-bottom: 1.5rem;
+  }
+
+  .iconBg {
+    width: 70px;
+    height: 70px;
+  }
+
+  .iconBg svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .featureTitle {
+    font-size: 1.25rem;
+  }
+
+  .featureDescription {
+    font-size: 0.95rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .features {
+    padding: 2.5rem 0;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .featureCard {
+    padding: 25px 20px;
+  }
+
+  .iconBg {
+    width: 60px;
+    height: 60px;
+  }
+
+  .iconBg svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .cardArrow {
+    display: none;
+  }
 }

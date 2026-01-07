@@ -94,67 +94,67 @@ const config: Config = {
         },
       ],
     },
-    footer: {
-      style: 'dark',
-      links: [
-        {
-          title: 'Course Content',
-          items: [
-            {
-              label: 'Get Started',
-              to: '/docs/intro',
-            },
-            {
-              label: 'Module 1: ROS 2',
-              to: '/docs/module-1-ros-2/introduction-to-physical-ai',
-            },
-            {
-              label: 'Module 2: Gazebo',
-              to: '/docs/module-2-gazebo-unity/understanding-urdf-for-humanoids',
-            },
-            {
-              label: 'Module 3: Isaac',
-              to: '/docs/module-3-isaac/introduction-to-nvidia-isaac-sim',
-            },
-          ],
-        },
-        {
-          title: 'Advanced Topics',
-          items: [
-            {
-              label: 'Module 4: VLA',
-              to: '/docs/module-4-vla/voice-to-action-with-openai-whisper',
-            },
-            {
-              label: 'Humanoid Development',
-              to: '/docs/module-2-gazebo-unity/understanding-urdf-for-humanoids',
-            },
-            {
-              label: 'Capstone Project',
-              to: '/docs/module-4-vla/capstone-project',
-            },
-          ],
-        },
-        {
-          title: 'Resources',
-          items: [
-            {
-              label: 'GitHub Repository',
-              href: 'https://github.com/hammadafzal55/Physical-Ai-Humaniod-Robotics',
-            },
-            {
-              label: 'ROS 2 Documentation',
-              href: 'https://docs.ros.org/en/humble/index.html',
-            },
-            {
-              label: 'NVIDIA Isaac',
-              href: 'https://developer.nvidia.com/isaac-sdk',
-            },
-          ],
-        },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} Physical AI & Humanoid Robotics. Created by Hammad Afzal.`,
-    },
+    // footer: {
+    //   style: 'dark',
+    //   links: [
+    //     {
+    //       title: 'Course Content',
+    //       items: [
+    //         {
+    //           label: 'Get Started',
+    //           to: '/docs/intro',
+    //         },
+    //         {
+    //           label: 'Module 1: ROS 2',
+    //           to: '/docs/module-1-ros-2/introduction-to-physical-ai',
+    //         },
+    //         {
+    //           label: 'Module 2: Gazebo',
+    //           to: '/docs/module-2-gazebo-unity/understanding-urdf-for-humanoids',
+    //         },
+    //         {
+    //           label: 'Module 3: Isaac',
+    //           to: '/docs/module-3-isaac/introduction-to-nvidia-isaac-sim',
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       title: 'Advanced Topics',
+    //       items: [
+    //         {
+    //           label: 'Module 4: VLA',
+    //           to: '/docs/module-4-vla/voice-to-action-with-openai-whisper',
+    //         },
+    //         {
+    //           label: 'Humanoid Development',
+    //           to: '/docs/module-2-gazebo-unity/understanding-urdf-for-humanoids',
+    //         },
+    //         {
+    //           label: 'Capstone Project',
+    //           to: '/docs/module-4-vla/capstone-project',
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       title: 'Resources',
+    //       items: [
+    //         {
+    //           label: 'GitHub Repository',
+    //           href: 'https://github.com/hammadafzal55/Physical-Ai-Humaniod-Robotics',
+    //         },
+    //         {
+    //           label: 'ROS 2 Documentation',
+    //           href: 'https://docs.ros.org/en/humble/index.html',
+    //         },
+    //         {
+    //           label: 'NVIDIA Isaac',
+    //           href: 'https://developer.nvidia.com/isaac-sdk',
+    //         },
+    //       ],
+    //     },
+    //   ],
+    //   copyright: `Copyright © ${new Date().getFullYear()} Physical AI & Humanoid Robotics. Created by Hammad Afzal.`,
+    // },
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
